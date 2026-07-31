@@ -102,6 +102,7 @@ docker/.env
 docker/.env.production
 .env.production
 .env.local
+e2e/.env
 
 # Fluentd runtime log output
 docker/fluentd/log/

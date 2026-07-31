@@ -1,0 +1,7 @@
+pytest>=8.3
+pytest-playwright>=0.5
+# Pinned exactly: must match the Playwright version baked into the base image
+# in e2e/Dockerfile (mcr.microsoft.com/playwright/python:v1.48.0-jammy), or the
+# pip-installed client will look for browser binaries that aren't installed.
+playwright==1.48.0
+python-dotenv>=1.0

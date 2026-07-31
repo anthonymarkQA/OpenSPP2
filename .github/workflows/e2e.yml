@@ -1,0 +1,53 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: ['19.0', 'openspp2-e2e-automation'] # TODO: drop the feature branch entry once merged into 19.0
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-spmis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build openspp image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: dev
+          load: true
+          tags: openspp-dev:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start Odoo (SPMIS) + Postgres
+        env:
+          ODOO_INIT_MODULES: spp_starter_sp_mis
+        run: docker compose --profile e2e up -d db openspp
+
+      - name: Wait for Odoo health
+        run: timeout 180 bash -c 'until curl -sf http://localhost:8069/web/health; do sleep 5; done'
+
+      - name: Build and run e2e-runner (SPMIS login)
+        run: docker compose --profile e2e run --rm e2e-runner tests/spmis -m spmis --junitxml=reports/spmis-login.xml
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-spmis-report
+          path: e2e/reports/
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile e2e down -v
